@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>SmartPay</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --green: #1D9E75; --green-light: #E1F5EE; --green-dark: #085041;
+    --red: #D85A30; --red-light: #FAECE7;
+    --bg: #ffffff; --bg2: #f5f5f3; --bg3: #efefec;
+    --txt: #1a1a18; --txt2: #5f5e5a; --txt3: #888780;
+    --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.18);
+    --rad: 16px; --radmd: 10px; --radsm: 7px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a18; --bg2: #242422; --bg3: #2c2c2a;
+      --txt: #f1efe8; --txt2: #b4b2a9; --txt3: #888780;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.18);
+      --green-light: #04342c; --green-dark: #9fe1cb;
+      --red-light: #4a1b0c; --red: #f09575;
+    }
+  }
+  html, body { height: 100%; background: var(--bg3); font-family: 'DM Sans', sans-serif; color: var(--txt); }
+  body { display: flex; justify-content: center; align-items: flex-start; padding: 0; }
+
+  /* Phone shell */
+  .phone {
+    width: 100%; max-width: 430px; min-height: 100vh;
+    background: var(--bg); display: flex; flex-direction: column;
+    position: relative; overflow: hidden;
+  }
+
+  /* Status bar */
+  .statusbar {
+    background: var(--green-dark); padding: 10px 20px 6px;
+    display: flex; justify-content: space-between;
+    font-family: 'Space Mono', monospace; font-size: 11px; color: #fff;
+  }
+
+  /* Header */
+  .header {
+    background: var(--green-dark); padding: 14px 20px 20px; color: #fff;
+  }
+  .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .logo { font-family: 'Space Mono', monospace; font-size: 20px; letter-spacing: -0.5px; }
+  .avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .bal-label { font-size: 12px; opacity: 0.7; margin-bottom: 3px; }
+  .bal-amount { font-family: 'Space Mono', monospace; font-size: 34px; letter-spacing: -1.5px; }
+  .bal-sub { font-size: 11px; opacity: 0.55; margin-top: 3px; }
+  .quick-btns { display: flex; gap: 8px; margin-top: 14px; }
+  .qbtn {
+    flex: 1; background: rgba(255,255,255,0.13); border: 1px solid rgba(255,255,255,0.22);
+    border-radius: var(--radmd); padding: 9px 4px; color: #fff;
+    font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+    cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    transition: background 0.15s;
+  }
+  .qbtn:hover { background: rgba(255,255,255,0.24); }
+  .qbtn-icon { font-size: 17px; line-height: 1; }
+
+  /* Content */
+  .content { flex: 1; overflow-y: auto; padding: 16px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .sec-title { font-size: 11px; font-weight: 600; color: var(--txt3); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 10px; }
+
+  /* Cards */
+  .card {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--rad); padding: 16px 18px; margin-bottom: 12px;
+  }
+
+  /* Form */
+  .fg { margin-bottom: 13px; }
+  .fg label { display: block; font-size: 12px; font-weight: 500; color: var(--txt2); margin-bottom: 5px; }
+  .fg input {
+    width: 100%; padding: 11px 13px;
+    border: 1px solid var(--border2); border-radius: var(--radsm);
+    background: var(--bg2); color: var(--txt);
+    font-family: 'DM Sans', sans-serif; font-size: 15px;
+    outline: none; transition: border-color 0.15s;
+  }
+  .fg input:focus { border-color: var(--green); }
+  .prefix-wrap { position: relative; }
+  .prefix-wrap .pfx { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--txt2); font-size: 14px; font-weight: 500; pointer-events: none; }
+  .prefix-wrap input { padding-left: 50px; }
+
+  /* Buttons */
+  .btn {
+    width: 100%; padding: 13px; border: none; border-radius: var(--radmd);
+    font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-green { background: var(--green); color: #fff; }
+  .btn-green:hover { opacity: 0.88; }
+  .btn-outline {
+    background: transparent; border: 1px solid var(--border2);
+    color: var(--txt); margin-top: 8px; font-weight: 500;
+  }
+  .btn-outline:hover { background: var(--bg2); }
+
+  /* Alerts */
+  .alert {
+    padding: 10px 13px; border-radius: var(--radsm);
+    font-size: 13px; font-weight: 500; margin: 8px 0;
+  }
+  .alert-ok { background: var(--green-light); color: var(--green-dark); }
+  .alert-err { background: var(--red-light); color: var(--red); }
+
+  /* Divider */
+  .divider { display: flex; align-items: center; gap: 8px; margin: 14px 0; color: var(--txt3); font-size: 12px; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* QR display */
+  .qr-wrap { text-align: center; padding: 10px 0; }
+  #qrcode-container canvas { border-radius: 8px; border: 4px solid #fff; outline: 1px solid var(--border); }
+  .qr-tag {
+    display: inline-block; margin-top: 10px;
+    background: var(--green-light); color: var(--green-dark);
+    font-family: 'Space Mono', monospace; font-size: 15px; font-weight: 700;
+    padding: 6px 18px; border-radius: 20px;
+  }
+  .qr-note { font-size: 12px; color: var(--txt3); margin-top: 5px; }
+
+  /* Camera scanner */
+  .cam-container {
+    position: relative; background: #000;
+    border-radius: var(--radmd); overflow: hidden;
+    width: 100%; aspect-ratio: 1;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #cam-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cam-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+  }
+  .cam-frame {
+    width: 65%; aspect-ratio: 1; border-radius: 12px;
+    border: 2px solid rgba(255,255,255,0.7);
+    box-shadow: 0 0 0 2000px rgba(0,0,0,0.45);
+  }
+  .cam-corner {
+    position: absolute; width: 20px; height: 20px;
+    border-color: #fff; border-style: solid; border-width: 0;
+  }
+  .cam-corner.tl { top: 0; left: 0; border-top-width: 3px; border-left-width: 3px; border-top-left-radius: 6px; }
+  .cam-corner.tr { top: 0; right: 0; border-top-width: 3px; border-right-width: 3px; border-top-right-radius: 6px; }
+  .cam-corner.bl { bottom: 0; left: 0; border-bottom-width: 3px; border-left-width: 3px; border-bottom-left-radius: 6px; }
+  .cam-corner.br { bottom: 0; right: 0; border-bottom-width: 3px; border-right-width: 3px; border-bottom-right-radius: 6px; }
+  .cam-scan-line {
+    position: absolute; left: 18%; right: 18%; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--green), transparent);
+    animation: scanline 2s ease-in-out infinite;
+  }
+  @keyframes scanline {
+    0% { top: 18%; } 50% { top: 82%; } 100% { top: 18%; }
+  }
+  .cam-hint { text-align: center; font-size: 12px; color: var(--txt3); margin-top: 8px; }
+  canvas#cam-canvas { display: none; }
+
+  /* Tx rows */
+  .tx { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .tx:last-child { border-bottom: none; }
+  .tx-l { display: flex; align-items: center; gap: 10px; }
+  .tx-dot { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .tx-dot.s { background: var(--red-light); color: var(--red); }
+  .tx-dot.r { background: var(--green-light); color: var(--green-dark); }
+  .tx-name { font-size: 14px; font-weight: 500; }
+  .tx-time { font-size: 11px; color: var(--txt3); margin-top: 1px; }
+  .tx-amt { font-family: 'Space Mono', monospace; font-size: 14px; font-weight: 700; }
+  .tx-amt.s { color: var(--red); }
+  .tx-amt.r { color: var(--green); }
+
+  /* Settings toggle */
+  .srow { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .srow:last-child { border-bottom: none; }
+  .srow p { font-size: 14px; font-weight: 500; }
+  .srow span { font-size: 11px; color: var(--txt3); margin-top: 1px; display: block; }
+  .toggle { width: 42px; height: 24px; border-radius: 12px; background: var(--border2); position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+  .toggle.on { background: var(--green); }
+  .toggle::after { content: ''; width: 20px; height: 20px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: left 0.2s; }
+  .toggle.on::after { left: 20px; }
+
+  /* Nav */
+  .nav { display: flex; border-top: 1px solid var(--border); background: var(--bg); padding-bottom: env(safe-area-inset-bottom); }
+  .nbtn {
+    flex: 1; padding: 10px 4px 8px; border: none; background: transparent;
+    font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 500;
+    color: var(--txt3); cursor: pointer; display: flex; flex-direction: column;
+    align-items: center; gap: 2px; transition: color 0.15s;
+  }
+  .nbtn.active { color: var(--green); }
+  .nbtn svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- Status Bar -->
+  <div class="statusbar">
+    <span id="clock">9:41</span>
+    <span>SmartPay · KE</span>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-row">
+      <div class="logo">SmartPay</div>
+      <div class="avatar" onclick="nav('settings')">EU</div>
+    </div>
+    <div class="bal-label">Available balance</div>
+    <div class="bal-amount" id="bal">KES 1,000</div>
+    <div class="bal-sub">Euty's Wallet · ****4321</div>
+    <div class="quick-btns">
+      <button class="qbtn" onclick="nav('send')"><span class="qbtn-icon">↑</span>Send</button>
+      <button class="qbtn" onclick="nav('receive')"><span class="qbtn-icon">↓</span>Receive</button>
+      <button class="qbtn" onclick="nav('history')"><span class="qbtn-icon">≡</span>History</button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- Home -->
+    <div class="screen active" id="s-home">
+      <div class="sec-title">Recent transactions</div>
+      <div class="card" id="home-txs"></div>
+    </div>
+
+    <!-- Receive -->
+    <div class="screen" id="s-receive">
+      <div class="sec-title">Receive money</div>
+      <div class="card">
+        <div class="fg">
+          <label>Amount (KES)</label>
+          <input type="number" id="rcvAmt" placeholder="e.g. 500" min="1">
+        </div>
+        <div class="fg">
+          <label>Note (optional)</label>
+          <input type="text" id="rcvNote" placeholder="e.g. Lunch">
+        </div>
+        <button class="btn btn-green" onclick="genQR()">Generate QR Code</button>
+      </div>
+      <div id="qr-card" style="display:none">
+        <div class="card">
+          <div class="qr-wrap">
+            <div id="qrcode-container"></div>
+            <div class="qr-tag" id="qr-amt-label"></div>
+            <div class="qr-note" id="qr-note-label"></div>
+            <div class="qr-note" style="margin-top:4px">Show this to the sender to scan</div>
+          </div>
+          <button class="btn btn-outline" onclick="clearQR()">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Send -->
+    <div class="screen" id="s-send">
+      <div class="sec-title">Send money</div>
+      <div class="card">
+        <div class="fg">
+          <label>Recipient</label>
+          <div class="prefix-wrap">
+            <span class="pfx">+254</span>
+            <input type="text" id="sendTo" placeholder="7XX XXX XXX">
+          </div>
+        </div>
+        <div class="fg">
+          <label>Amount (KES)</label>
+          <input type="number" id="sendAmt" placeholder="e.g. 200" min="1">
+        </div>
+        <div class="fg">
+          <label>Note (optional)</label>
+          <input type="text" id="sendNote" placeholder="e.g. Rent">
+        </div>
+        <div id="send-alert"></div>
+        <button class="btn btn-green" onclick="doSend()">Send Money</button>
+      </div>
+
+      <div class="divider">or scan QR code</div>
+
+      <!-- Camera Scanner -->
+      <div class="card">
+        <div class="cam-container" id="cam-box">
+          <video id="cam-video" autoplay playsinline muted></video>
+          <div class="cam-overlay">
+            <div style="position:relative;width:65%;aspect-ratio:1">
+              <div class="cam-frame"></div>
+              <div class="cam-corner tl"></div>
+              <div class="cam-corner tr"></div>
+              <div class="cam-corner bl"></div>
+              <div class="cam-corner br"></div>
+              <div class="cam-scan-line"></div>
+            </div>
+          </div>
+          <canvas id="cam-canvas"></canvas>
+        </div>
+        <div class="cam-hint" id="cam-hint">Tap "Start Camera" to scan a QR code</div>
+        <div id="scan-alert"></div>
+        <button class="btn btn-green" id="cam-btn" onclick="toggleCamera()" style="margin-top:10px">Start Camera</button>
+        <div class="divider">or paste QR data</div>
+        <div class="fg">
+          <label>Paste QR code data</label>
+          <input type="text" id="qrPaste" placeholder="SMPAY:500:Note">
+        </div>
+        <button class="btn btn-outline" onclick="processPaste()">Process QR</button>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="screen" id="s-history">
+      <div class="sec-title">All transactions</div>
+      <div class="card" id="all-txs"></div>
+    </div>
+
+    <!-- Settings -->
+    <div class="screen" id="s-settings">
+      <div class="sec-title">Account</div>
+      <div class="card" style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div style="width:48px;height:48px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px;color:var(--green-dark)">EU</div>
+          <div>
+            <div style="font-size:15px;font-weight:500">Euty</div>
+            <div style="font-size:12px;color:var(--txt2)">+254 712 345 678</div>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:10px;font-family:'Space Mono',monospace;font-size:13px;color:var(--txt2)">
+          Wallet ****4321 · KES <span id="s-bal">1,000</span>
+        </div>
+      </div>
+      <div class="sec-title">Preferences</div>
+      <div class="card">
+        <div class="srow"><div><p>QR expiry reminder</p><span>Alert when QR is older than 5 min</span></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="srow"><div><p>Transaction alerts</p><span>Notify on send / receive</span></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="srow"><div><p>Biometric lock</p><span>Fingerprint to open app</span></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+        <div class="srow"><div><p>Dark mode</p><span>Follows system setting</span></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="nav">
+    <button class="nbtn active" id="nb-home" onclick="nav('home')">
+      <svg viewBox="0 0 24 24"><path d="M3 12L12 3l9 9"/><path d="M9 21V12h6v9"/></svg>Home
+    </button>
+    <button class="nbtn" id="nb-receive" onclick="nav('receive')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12l4 4 4-4"/></svg>Receive
+    </button>
+    <button class="nbtn" id="nb-send" onclick="nav('send')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16V8M8 12l4-4 4 4"/></svg>Send
+    </button>
+    <button class="nbtn" id="nb-history" onclick="nav('history')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6"/></svg>History
+    </button>
+    <button class="nbtn" id="nb-settings" onclick="nav('settings')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings
+    </button>
+  </nav>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let balance = 1000;
+let txs = [
+  { dir:'r', name:'Alice Wanjiru', amount:500, note:'', time:'Today, 08:14' },
+  { dir:'s', name:'Brian Otieno', amount:200, note:'Lunch', time:'Yesterday, 17:32' },
+  { dir:'r', name:'James Kamau', amount:150, note:'', time:'Mon, 12:00' },
+];
+let camStream = null;
+let scanning = false;
+let scanRAF = null;
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const fmt = n => n.toLocaleString('en-KE');
+const $ = id => document.getElementById(id);
+
+function updateBal() {
+  $('bal').textContent = 'KES ' + fmt(balance);
+  $('s-bal').textContent = fmt(balance);
+}
+
+function showAlert(id, msg, type) {
+  $(id).innerHTML = `<div class="alert alert-${type==='ok'?'ok':'err'}">${msg}</div>`;
+  setTimeout(() => { $(id).innerHTML = ''; }, 3500);
+}
+
+// ─── Navigation ──────────────────────────────────────────────────────────────
+function nav(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nbtn').forEach(b => b.classList.remove('active'));
+  $('s-' + name).classList.add('active');
+  const nb = $('nb-' + name);
+  if (nb) nb.classList.add('active');
+  if (name === 'history') renderHistory();
+  if (name !== 'send') stopCamera();
+}
+
+// ─── QR Generation ───────────────────────────────────────────────────────────
+function genQR() {
+  const amt = parseFloat($('rcvAmt').value);
+  const note = $('rcvNote').value.trim() || 'Payment';
+  if (!amt || amt <= 0) return alert('Enter a valid amount.');
+  const data = `SMPAY:${amt}:${note}`;
+  const container = $('qrcode-container');
+  container.innerHTML = '';
+  QRCode.toDataURL(data, {
+    width: 200, margin: 1,
+    color: { dark: '#085041', light: '#ffffff' }
+  }, (err, url) => {
+    if (err) { console.error(err); return; }
+    const img = document.createElement('img');
+    img.src = url;
+    img.style.cssText = 'border-radius:8px;border:4px solid #fff;outline:1px solid rgba(0,0,0,0.1);';
+    container.appendChild(img);
+  });
+  $('qr-amt-label').textContent = 'KES ' + fmt(amt);
+  $('qr-note-label').textContent = note !== 'Payment' ? 'Note: ' + note : '';
+  $('qr-card').style.display = 'block';
+}
+
+function clearQR() {
+  $('qr-card').style.display = 'none';
+  $('rcvAmt').value = '';
+  $('rcvNote').value = '';
+}
+
+// ─── Send Money ──────────────────────────────────────────────────────────────
+function doSend() {
+  const to = $('sendTo').value.trim();
+  const amt = parseFloat($('sendAmt').value);
+  const note = $('sendNote').value.trim();
+  if (!to) return showAlert('send-alert', 'Enter a recipient.', 'err');
+  if (!amt || amt <= 0) return showAlert('send-alert', 'Enter a valid amount.', 'err');
+  if (amt > balance) return showAlert('send-alert', 'Insufficient balance!', 'err');
+  balance -= amt;
+  updateBal();
+  txs.unshift({ dir:'s', name:'To +254 ' + to, amount: amt, note, time: 'Just now' });
+  showAlert('send-alert', `Sent KES ${fmt(amt)} successfully!`, 'ok');
+  $('sendTo').value = '';
+  $('sendAmt').value = '';
+  $('sendNote').value = '';
+  renderHomeTxs();
+}
+
+// ─── QR Paste Processing ─────────────────────────────────────────────────────
+function processQRData(raw) {
+  raw = raw.trim();
+  if (!raw) return showAlert('scan-alert', 'No QR data found.', 'err');
+  let amt, note = 'QR Payment';
+  if (raw.startsWith('SMPAY:')) {
+    const p = raw.split(':');
+    amt = parseFloat(p[1]);
+    if (p[2]) note = p[2];
+  } else if (!isNaN(raw)) {
+    amt = parseFloat(raw);
+  } else {
+    return showAlert('scan-alert', 'Unrecognised QR format.', 'err');
+  }
+  if (!amt || amt <= 0) return showAlert('scan-alert', 'Invalid amount in QR.', 'err');
+  if (amt > balance) return showAlert('scan-alert', 'Insufficient balance!', 'err');
+  balance -= amt;
+  updateBal();
+  txs.unshift({ dir:'s', name:'QR: ' + note, amount: amt, note, time: 'Just now' });
+  showAlert('scan-alert', `Paid KES ${fmt(amt)} via QR!`, 'ok');
+  $('qrPaste').value = '';
+  renderHomeTxs();
+  stopCamera();
+}
+
+function processPaste() {
+  processQRData($('qrPaste').value);
+}
+
+// ─── Camera / QR Scanner ─────────────────────────────────────────────────────
+async function toggleCamera() {
+  if (camStream) { stopCamera(); return; }
+  $('cam-hint').textContent = 'Starting camera...';
+  $('cam-btn').textContent = 'Stop Camera';
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 640 } }
+    });
+    const video = $('cam-video');
+    video.srcObject = camStream;
+    video.play();
+    video.addEventListener('loadedmetadata', () => {
+      scanning = true;
+      $('cam-hint').textContent = 'Point at a SmartPay QR code';
+      scanFrame();
+    });
+  } catch (e) {
+    $('cam-hint').textContent = 'Camera access denied. Use paste instead.';
+    $('cam-btn').textContent = 'Start Camera';
+    camStream = null;
+  }
+}
+
+function stopCamera() {
+  if (camStream) {
+    camStream.getTracks().forEach(t => t.stop());
+    camStream = null;
+  }
+  scanning = false;
+  if (scanRAF) cancelAnimationFrame(scanRAF);
+  const video = $('cam-video');
+  if (video) video.srcObject = null;
+  $('cam-btn').textContent = 'Start Camera';
+  $('cam-hint').textContent = 'Tap "Start Camera" to scan a QR code';
+}
+
+function scanFrame() {
+  if (!scanning) return;
+  const video = $('cam-video');
+  const canvas = $('cam-canvas');
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert'
+    });
+    if (code && code.data) {
+      $('cam-hint').textContent = 'QR detected: ' + code.data;
+      scanning = false;
+      processQRData(code.data);
+      return;
+    }
+  }
+  scanRAF = requestAnimationFrame(scanFrame);
+}
+
+// ─── Transaction Lists ────────────────────────────────────────────────────────
+function txHTML(t) {
+  return `<div class="tx">
+    <div class="tx-l">
+      <div class="tx-dot ${t.dir}">${t.dir==='r'?'↓':'↑'}</div>
+      <div>
+        <div class="tx-name">${t.name}</div>
+        <div class="tx-time">${t.time}${t.note?' · '+t.note:''}</div>
+      </div>
+    </div>
+    <div class="tx-amt ${t.dir}">${t.dir==='r'?'+':'-'}${fmt(t.amount)}</div>
+  </div>`;
+}
+
+function renderHomeTxs() {
+  $('home-txs').innerHTML = txs.slice(0, 4).map(txHTML).join('');
+}
+
+function renderHistory() {
+  $('all-txs').innerHTML = txs.length
+    ? txs.map(txHTML).join('')
+    : '<div style="color:var(--txt3);font-size:13px;text-align:center;padding:10px">No transactions yet</div>';
+}
+
+// ─── Clock ────────────────────────────────────────────────────────────────────
+function tick() {
+  const n = new Date();
+  $('clock').textContent = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+}
+tick(); setInterval(tick, 10000);
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+renderHomeTxs();
+</script>
+</body>
+</html>
