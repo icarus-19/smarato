@@ -1,4 +1,4 @@
-import React from 'react';
+ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useWallet } from '../context/WalletContext';
